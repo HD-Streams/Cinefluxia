@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cinefluxia — Seasons + Editable Episodes (Full Site)</title>
+  <meta name="description" content="Cinefluxia UI demo — edit the movies / seasons arrays in the script to change titles, descriptions and video sources."/>
+  <style>
+    :root{
+      --bg:#071021;
+      --card:#0f1724;
+      --muted:#9aa4b2;
+      --accent:#ff4d6d;
+      --glass: rgba(255,255,255,0.03);
+      --radius:12px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,#031126 0%, #071026 70%);color:#e6eef8;-webkit-font-smoothing:antialiased}
+
+    /* header */
+    header{display:flex;align-items:center;gap:20px;padding:14px 22px;position:sticky;top:0;background:linear-gradient(180deg,rgba(4,8,16,0.7),transparent);backdrop-filter: blur(6px);z-index:60}
+    .logo{display:flex;align-items:center;gap:12px;font-weight:700;font-size:18px}
+    .logo .mark{width:44px;height:44px;background:linear-gradient(135deg,var(--accent),#ff7a8a);border-radius:10px;display:grid;place-items:center;color:#021; font-weight:800}
+
+    .search{margin-left:18px;display:flex;gap:12px;align-items:center;background:rgba(255,255,255,0.03);padding:8px;border-radius:999px;transition:transform .2s}
+    .search input{background:transparent;border:0;color:inherit;padding:6px 8px;outline:none;width:340px}
+    nav{margin-left:auto;display:flex;gap:12px;align-items:center}
+    nav a{color:#cfe6ff;text-decoration:none;padding:8px 12px;border-radius:8px;font-size:14px}
+    nav a:hover{background:var(--glass)}
+
+    /* layout */
+    .container{max-width:1200px;margin:20px auto;padding:0 20px}
+    .hero{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+    .hero-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); border-radius:18px;padding:18px;display:flex;gap:18px;align-items:flex-start;overflow:hidden;position:relative}
+    .poster{width:260px;border-radius:12px;overflow:hidden;flex-shrink:0;box-shadow:0 8px 30px rgba(2,6,12,0.6);transform-origin:center;animation:posterEntrance .8s ease;}
+    .poster img{display:block;width:100%;height:100%;object-fit:cover;display:block}
+
+    @keyframes posterEntrance { from{ transform:translateY(10px) scale(.98); opacity:0 } to{ transform:translateY(0) scale(1); opacity:1 } }
+
+    .meta h1{margin:0;font-size:26px;animation:fadeInUp .45s ease .05s both}
+    .meta p{color:var(--muted);margin:10px 0 0;opacity:.95}
+    .badges{display:flex;gap:8px;margin-top:12px;color:var(--muted);font-size:13px}
+    .actions{display:flex;gap:10px;margin-top:16px}
+    .btn{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#041018;font-weight:700;cursor:pointer;transition:transform .12s ease, box-shadow .12s}
+    .btn:active{transform:translateY(1px)}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:#d8e9ff}
+
+    /* sidebar */
+    .sidebar{background:rgba(255,255,255,0.02);border-radius:12px;padding:14px}
+    .sidebar h4{margin:0 0 8px 0}
+    .thumb{display:flex;gap:10px;align-items:center;margin-bottom:12px;cursor:pointer;transition:transform .14s}
+    .thumb:hover{transform:translateX(6px)}
+    .thumb img{width:72px;height:42px;object-fit:cover;border-radius:6px}
+    .thumb .tmeta{font-size:13px;color:var(--muted)}
+
+    /* rows/cards */
+    .rows{margin-top:26px}
+    .row{margin:18px 0}
+    .row h3{margin:4px 0 12px}
+    .cards{display:flex;gap:14px;overflow:auto;padding-bottom:6px}
+    .card{min-width:200px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:10px;flex-shrink:0;cursor:pointer;transition:transform .18s ease, box-shadow .18s ease;opacity:0;animation:cardFade .5s ease forwards}
+    .card:hover{transform:translateY(-8px);box-shadow:0 18px 40px rgba(4,8,16,0.6)}
+    .card .img{height:120px;border-radius:8px;overflow:hidden}
+    .card img{width:100%;height:100%;object-fit:cover;display:block}
+    .card .title{font-size:15px;margin-top:10px}
+    .card .meta{font-size:12px;color:var(--muted);margin-top:6px}
+    .card .desc{font-size:13px;color:var(--muted);margin-top:8px;max-height:46px;overflow:hidden}
+
+    @keyframes cardFade{ to{opacity:1; transform:none} }
+
+    /* editable block - hidden by default */
+    pre.editblock{display:none;background:#071827;border-radius:8px;padding:12px;color:#d8eefc;overflow:auto;font-family:monospace;white-space:pre-wrap;max-height:220px}
+
+    /* seasons */
+    .seasons-panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), transparent); border-radius:12px;padding:14px;margin-bottom:18px;display:flex;gap:16px;flex-direction:column;box-shadow:0 6px 24px rgba(0,0,0,0.35)}
+    .season-list{display:flex;gap:8px;flex-wrap:wrap}
+    .season-btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);cursor:pointer;background:transparent;transition:all .12s}
+    .season-btn:hover{transform:translateY(-4px);background:rgba(255,255,255,0.02)}
+    .season-btn.active{background:rgba(255,255,255,0.03);box-shadow:inset 0 0 0 1px rgba(255,255,255,0.02)}
+    .episodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:12px}
+    .episode{background:rgba(255,255,255,0.02);padding:10px;border-radius:10px;cursor:pointer;display:flex;gap:8px;align-items:center;transition:transform .14s ease, box-shadow .14s;opacity:0;animation:cardFade .45s ease forwards}
+    .episode:hover{transform:translateY(-6px);box-shadow:0 14px 30px rgba(2,6,12,0.5)}
+    .episode img{width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0}
+    .episode .ep-meta{font-size:13px;color:var(--muted)}
+    .number-toggle{display:none} /* removed from UI per request */
+
+    /* modal */
+    .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(0deg, rgba(0,0,0,0.6), rgba(0,0,0,0.6));z-index:200}
+    .modal.open{display:flex}
+    .modal .panel{width:min(1100px,96%);background:#050714;padding:18px;border-radius:12px;position:relative;display:flex;gap:18px}
+    .modal .panel .left{width:420px}
+    .modal .panel .right{flex:1}
+    .close{position:absolute;right:18px;top:18px;background:rgba(255,255,255,0.03);border-radius:8px;padding:8px;cursor:pointer}
+
+    .modal-message{color:#f3b0b0;margin-top:10px;font-size:14px}
+
+    /* responsive */
+    @media(max-width:980px){
+      .hero{grid-template-columns:1fr}
+      .poster{width:160px}
+      .search input{width:160px}
+      nav{display:none}
+      .modal .panel{flex-direction:column}
+      .modal .panel .left{width:100%}
+      .episodes-grid{ grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); }
+      .episode img{ width:100px; height:60px; }
+    }
+
+    /* subtle fade-in for page */
+    .pageFade{animation:pageIn .35s ease both}
+    @keyframes pageIn { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+    @keyframes fadeInUp { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
+  </style>
+</head>
+<body class="pageFade">
+  <header>
+    <div class="logo"><div class="mark">CS</div>Cinefluxia</div>
+    <div class="search" role="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><circle cx="11" cy="11" r="6" stroke="currentColor" stroke-width="1.5"></circle></svg>
+      <input id="searchInput" placeholder="Search movies, clips, actors..." />
+    </div>
+    <nav>
+      <a href="#">Home</a>
+      <a href="#">Movies</a>
+      <a href="#">Clips</a>
+      <a href="#">Genres</a>
+      <a href="#">My List</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section style="margin-bottom:18px">
+      <h3 style="margin:0 0 6px 0"></h3>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="flex:1">
+          <!-- EDITABLE BLOCK: contents kept EXACTLY as provided earlier - hidden by default -->
+          <pre id="EDITABLE_BLOCK" class="editblock" title="Double-click to edit">
+HH-S0E0-link = "https://drive.google.com/file/d/1WyJvLzerqznSPqd96wtPcdIdDX6ejqDr/view?usp=sharing"
+HH-S0E0-desc = "Follow Charlie, the pri..."
+HH-S0E0-image = "https://i.ytimg.com/vi/Zlmswo0S0e0/hqdefault.jpg?sqp=-oaymwEnCNACELwBSFryq4qpAxkIARUAAIhCGAHYAQHiAQoIGBACGAY4AUAB&rs=AOn4CLAKWRqdu6xN7RUrzpD92SzKZyPhag"
+HH-S0E0-length = "31:45"
+HH-S0E0-genre = "adventure, comedy"
+HH-S0E0-rating = "PG"
+HH-S0E0-date = "28/10/2019"
+HH-S0E0-title = "E0 — Pilot"
+
+HH-S1E1-link = "https://drive.google.com/file/d/1Ze6PR4KTU9tNSW9gPsbZm5bxp6kvE0QD/view?usp=sharing"
+HH-S1E1-desc = "Charlie pitches Hea..."
+HH-S1E1-image = "https://m.media-amazon.com/images/S/pv-target-images/5868fc9021014614edb6165fc58ee3154603ca4f5d6db62fa8f537d4a62b55e7._BR-6_AC_SX1920_FMwebp_.jpg"
+HH-S1E1-length = "25min"
+HH-S1E1-genre = "adventure, comedy"
+HH-S1E1-rating = "PG-15"
+HH-S1E1-date = "January 19, 2024"
+HH-S1E1-title = "E1 — Overture"
+
+HH-S1E2-link = "https://drive.google.com/file/d/1zfYUoc7RxZgPsxUf0KcI6U4qMSskRHMY/view?usp=sharing"
+HH-S1E2-desc = "Charlie pitches Hea..."
+HH-S1E2-image = "https://m.media-amazon.com/images/S/pv-target-images/7aa3e93fb128416e6889838de4b3b60c78fa9f8e087dc6475aff2a0c4fa5ccc0._BR-6_AC_SX1920_FMwebp_.jpg"
+HH-S1E2-length = "25min"
+HH-S1E2-genre = "adventure, comedy"
+HH-S1E2-rating = "PG-15"
+HH-S1E2-date = "January 19, 2024"
+HH-S1E2-title = "E2 — Radio Killed the Video Star"
+
+HH-S1E3-link = "https://drive.google.com/file/d/1EQFdMUwv0Us7-oeNVFrkogyiQkSSGLJ2/view?usp=sharing"
+HH-S1E3-desc = "The Vee’s: Vox, Vel..."
+HH-S1E3-image = "https://m.media-amazon.com/images/S/pv-target-images/986ac57a4e7e428319e2f04537891ea5d0700e38d1925626ae95f60a3958a698._BR-6_AC_SX1920_FMwebp_.jpg"
+HH-S1E3-length = "24min"
+HH-S1E3-genre = "adventure, comedy"
+HH-S1E3-rating = "PG-18"
+HH-S1E3-date = "January 19, 2024"
+HH-S1E3-title = "E3 — Scrambled Eggs"
+
+HH-S1E4-link = "https://drive.google.com/file/d/1umReYFl9JBHxrWZLHJt3XctJ269xbFgM/view?usp=sharing"
+HH-S1E4-desc = "Angel struggles to ..."
+HH-S1E4-image = "https://m.media-amazon.com/images/S/pv-target-images/8a6f4bee08426e53bee5559d5e8182e72ddcb057fe0d3c58387930ddc82863a4._BR-6_AC_SX1920_FMwebp_.jpg"
+HH-S1E4-length = "25min"
+HH-S1E4-genre = "adventure, comedy"
+HH-S1E4-rating = "PG-18"
+HH-S1E4-date = "January 19, 2024"
+HH-S1E4-title = "E4 — Scrambled Eggs"
+
+HH-S1E5-link = "https://drive.google.com/file/d/1dv3aILWwRSCXbbcDdJnb6MLp-yO7Ri_L/view?usp=sharing"
+HH-S1E5-desc = "Charlie struggles w..."
+HH-S1E5-image = "https://m.media-amazon.com/images/S/pv-target-images/2b2977b20b0101a9940ddcd4f10e4fd2ee532fb545ba544d4b9e133b08f0006e._BR-6_AC_SX1920_FMwebp_.jpg"
+HH-S1E5-length = "25min"
+HH-S1E5-genre = "adventure, comedy"
+HH-S1E5-rating = "PG-15"
+HH-S1E5-date = "January 26, 2024"
+HH-S1E5-title = "E5 — Dad Beat Dad"
+
+HH-S1E6-link = "https://drive.google.com/file/d/14Da2VCug68wX4DTpJNGVidCFJWt4ID00/view?usp=sharing"
+HH-S1E6-desc = "Charlie and Vaggie ..."
+HH-S1E6-image = "https://m.media-amazon.com/images/S/pv-target-images/0d6f001a97ceaa78e7f106cbb051dec6e310d216eb055aa1c92126f394bc3f32._BR-6_AC_SX1920_FMwebp_.jpg"
+HH-S1E6-length = "25min"
+HH-S1E6-genre = "adventure, comedy"
+HH-S1E6-rating = "PG-15"
+HH-S1E6-date = "January 26, 2024"
+HH-S1E6-title = "E6 — Welcome to Heaven"
+
+HH-S1E7-link = "https://drive.google.com/file/d/1oWzMkWdD444QaWiMd-HBz7vBPOb7KX3x/view?usp=sharing"
+HH-S1E7-desc = "With secrets reveal..."
+HH-S1E7-image = "https://m.media-amazon.com/images/S/pv-target-images/0d6f001a97ceaa78e7f106cbb051dec6e310d216eb055aa1c92126f394bc3f32._BR-6_AC_SX1920_FMwebp_.jpg"
+HH-S1E7-length = "25min"
+HH-S1E7-genre = "adventure, comedy"
+HH-S1E7-rating = "PG-15"
+HH-S1E7-date = "February 2, 2024"
+HH-S1E7-title = "E7 — Hello Rosie!"
+
+HH-S1E8-link = "https://drive.google.com/file/d/1awDlD-wT4_qq4vT_FzHHopb61jJYNIR_/view?usp=sharing"
+HH-S1E8-desc = "In the Season One f..."
+HH-S1E8-image = "https://m.media-amazon.com/images/S/pv-target-images/2defea80b74fd25f02cd0ea041fff5b68d5e51a64f465f3f04e25cff2c56067c._BR-6_AC_SX1920_FMwebp_.jpg"
+HH-S1E8-length = "25min"
+HH-S1E8-genre = "adventure, comedy"
+HH-S1E8-rating = "PG-15"
+HH-S1E8-date = "February 2, 2024"
+HH-S1E8-title = "E8 — The Show Must Go On"
+
+HH-S2E1-link = "https://drive.google.com/file/d/1YI8qIOO2-mxyk-sy1t3DhancB-ThViPx/view?usp=sharing"
+HH-S2E1-desc = "Charlie’s victory a..."
+HH-S2E1-image = "https://m.media-amazon.com/images/S/pv-target-images/bbf7b6cb994a759d9f22c370bcb3dfd1371fa308c9d27deba7b1aa056af51f82._BR-6_AC_SX360_FMwebp_.jpg"
+HH-S2E1-length = "28min"
+HH-S2E1-genre = "adventure, comedy"
+HH-S2E1-rating = "PG-15"
+HH-S2E1-date = "October 29, 2025"
+HH-S2E1-title = "E1 - New Pentious"
+
+HH-S2E2-link = "https://drive.google.com/file/d/1nl8Rsv29Tr-aSg17v7umczUNhiWbv8ur/view?usp=sharing"
+HH-S2E2-desc = "Sir Pentious’ redem..."
+HH-S2E2-image = "https://m.media-amazon.com/images/S/pv-target-images/826a9df4ba1de49a8e735542154351fdde629e6589fe1dbeffebfc195d8d2e23._BR-6_AC_SX360_FMwebp_.jpg"
+HH-S2E2-length = "28min"
+HH-S2E2-genre = "adventure, comedy"
+HH-S2E2-rating = "PG-15"
+HH-S2E2-date = "October 29, 2025"
+HH-S2E2-title = "E2 - Storyteller"
+
+HH-S2E3-link = "https://drive.google.com/file/d/1M3p2CJpWKzTcyK0tCGeRDH8xQ5NpGs9k/view?usp=sharing"
+HH-S2E3-desc = "Charlie invites Vo..."
+HH-S2E3-image = "https://m.media-amazon.com/images/S/pv-target-images/9fc2da5fac851a699e866710fd02998db75e45ba4f325e0068a74937a1d8d1d7._BR-6_AC_SX360_FMwebp_.jpg"
+HH-S2E3-length = "28min"
+HH-S2E3-genre = "adventure, comedy"
+HH-S2E3-rating = "PG-15"
+HH-S2E3-date = "November 5, 2025"
+HH-S2E3-title = "E3 - Hazbin Hotel: Behind Closed Doors"
+
+HH-S2E4-link = "https://drive.google.com/file/d/1PEnDQk7Wu1S2bYf8WicyfZ3KzlAWBIOY/view?usp=sharing"
+HH-S2E4-desc = "Charlie tries to d..."
+HH-S2E4-image = "https://m.media-amazon.com/images/S/pv-target-images/eeea92f3d00847a73eafe4d9c1f83cebc5734a47b16acb0999ae54019706db2a._BR-6_AC_SX360_FMwebp_.jpg"
+HH-S2E4-length = "29min"
+HH-S2E4-genre = "adventure, comedy"
+HH-S2E4-rating = "PG-15"
+HH-S2E4-date = "November 5, 2025"
+HH-S2E4-title = "E4 - It's A Deal"
+
+HH-S2E5-link = "https://drive.google.com/file/d/1Jfn09w-i7DwdDnegsd3n7iFQ7lpSdoFh/view?usp=sharing"
+HH-S2E5-desc = "Vox hosts a rally ..."
+HH-S2E5-image = "https://m.media-amazon.com/images/S/pv-target-images/3e172285fc3cc107a92925cbd0c519ae96701993047f4e09755078ab6528a7f0._BR-6_AC_SX360_FMwebp_.jpg"
+HH-S2E5-length = "28min"
+HH-S2E5-genre = "adventure, comedy"
+HH-S2E5-rating = "PG-15"
+HH-S2E5-date = "November 12, 2025"
+HH-S2E5-title = "E5 - Silenced"
+
+HH-S2E6-link = "https://drive.google.com/file/d/1DuBGOltk9nc9ePfH-of-H1aKPC75d26G/view?usp=sharing"
+HH-S2E6-desc = "Vox leads the over..."
+HH-S2E6-image = "https://m.media-amazon.com/images/S/pv-target-images/78d786a28e096cf655923834b3ee0e5f9f2c2fe6ee4fb5f7140cf65072e76c59._BR-6_AC_SX360_FMwebp_.jpg"
+HH-S2E6-length = "28min"
+HH-S2E6-genre = "adventure, comedy"
+HH-S2E6-rating = "PG-15"
+HH-S2E6-date = "November 12, 2025"
+HH-S2E6-title = "E6 - Scream Rain"
+
+HH-S2E7-link = "https://drive.google.com/file/d/1gj7vAuKFDZfF5M4qZPHgzf-T7Jn3yRWP/view?usp=sharing"
+HH-S2E7-desc = "Vox unveils his se..."
+HH-S2E7-image = "https://m.media-amazon.com/images/S/pv-target-images/7d19027da2b5f353e866042c2907cfab4137c3cdbbeb26d1f2e8d9e8d8750e38._BR-6_AC_SX360_FMwebp_.jpg"
+HH-S2E7-length = "29min"
+HH-S2E7-genre = "adventure, comedy"
+HH-S2E7-rating = "PG-15"
+HH-S2E7-date = "November 19, 2025"
+HH-S2E7-title = "E7 - Weapon of Mass Distraction"
+
+HH-S2E8-link = "https://drive.google.com/file/d/1vmieBCn1aqb82xShXeCHzvvGAsEk3uCI/view?usp=sharing"
+HH-S2E8-desc = "Vox (and the Vees,..."
+HH-S2E8-image = "https://m.media-amazon.com/images/S/pv-target-images/bf11fd0f66d567c536ba44689ad5f31a83bae96269bbf3c7767daa892a1d1258._BR-6_AC_SX360_FMwebp_.jpg"
+HH-S2E8-length = "38min"
+HH-S2E8-genre = "adventure, comedy"
+HH-S2E8-rating = "PG-15"
+HH-S2E8-date = "November 19, 2025"
+HH-S2E8-title = "E8 - Curtain Call"
+          </pre>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <!-- small area reserved for any future helper text, currently empty per request -->
+          <div style="color:var(--muted);font-size:13px;max-width:220px"><code></code></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="hero">
+      <div class="hero-card">
+        <div class="poster"><img id="heroPoster" src="https://picsum.photos/640/960?random=1" alt="hero poster"></div>
+        <div class="meta">
+          <h1 id="heroTitle">Featured Title</h1>
+          <div class="badges" id="heroBadges">
+            <div id="heroRating">PG-13</div><div>•</div><div id="heroLength">1h 58m</div><div>•</div><div id="heroGenre">Drama</div>
+          </div>
+          <p id="heroDesc">Short summary appears here. Click "Watch" to open the clip player with the selected item. Click a card to update the hero and view details.</p>
+          <div class="actions">
+            <button class="btn" id="playBtn">▶ Watch</button>
+            <button class="btn ghost" id="detailsBtn">Details</button>
+          </div>
+        </div>
+      </div>
+
+      <aside class="sidebar">
+        <h4>Top Clips</h4>
+        <div id="topClips"></div>
+        <hr style="border:none;border-top:1px solid rgba(255,255,255,0.03);margin:12px 0">
+        <h4></h4>
+        <div style="font-size:13px;color:var(--muted)"><strong></strong></div>
+      </aside>
+    </section>
+
+    <!-- Seasons panel -->
+    <section class="seasons-panel" id="seasonsPanel" aria-label="Seasons">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <div>
+          <h3 style="margin:0 0 6px 0">Hazbin Hotel</h3>
+          <div style="color:var(--muted);font-size:13px">Pick a season and an episode to play a clip.</div>
+        </div>
+        <!-- numbering toggle removed per your request -->
+      </div>
+
+      <div class="season-list" id="seasonList" style="margin-top:12px"></div>
+
+      <div style="display:flex;gap:12px;align-items:center;margin-top:10px">
+        <div style="font-weight:700">Episodes</div>
+        <div id="selectedSeasonLabel" style="color:var(--muted);font-size:13px"></div>
+      </div>
+
+      <div class="episodes-grid" id="episodesGrid"></div>
+    </section>
+
+    <section class="rows">
+      <div class="row">
+        <h3>Trending Now</h3>
+        <div class="cards" id="trending"></div>
+      </div>
+      <div class="row">
+        <h3>New Releases</h3>
+        <div class="cards" id="newReleases"></div>
+      </div>
+      <div class="row">
+        <h3>Recommended For You</h3>
+        <div class="cards" id="recommended"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <div class="modal" id="modal">
+    <div class="panel" role="dialog" aria-modal="true">
+      <button class="close" id="closeModal">✕</button>
+      <div class="top" style="display:flex;gap:18px;width:100%">
+        <div class="left">
+          <img id="modalPoster" src="" alt="poster" style="width:100%;border-radius:8px;display:block;margin-bottom:12px">
+          <h2 id="modalTitle">Title</h2>
+          <div style="color:var(--muted);font-size:13px;margin-bottom:8px" id="modalMeta"></div>
+          <p id="modalDesc" style="color:var(--muted);line-height:1.4"></p>
+          <div id="modalMessageContainer"></div>
+        </div>
+        <div class="right">
+          <div id="playerWrapper" style="width:100%;height:100%;max-height:520px;border-radius:8px;overflow:hidden">
+            <video id="player" controls style="width:100%;height:100%;max-height:520px;border-radius:8px;background:#000;display:block;" preload="metadata">
+              <source id="playerSource" src="" type="video/mp4">
+              Your browser does not support the video tag.
+            </video>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer style="padding:28px;color:var(--muted);text-align:center">
+    © Cinefluxia UI Demo — edit the movies or seasons block to customize content.
+  </footer>
+
+  <script>
+    // ---------------- Editable lines parser + fallback generator ----------------
+    function readEditableBlock(){
+      const block = document.getElementById('EDITABLE_BLOCK').textContent || '';
+      return block.split(/\r?\n/).map(l=>l.trim()).filter(l=>l && !l.startsWith('#'));
+    }
+
+    function parseEditableLines(lines){
+      const episodesData = {};
+      // robust regex for KEY-S{season}E{episode}-{field} = "value"
+      const lineRe = /^([A-Za-z0-9_\-]+-S(\d+)E(\d+)-([A-Za-z0-9_]+))\s*=\s*"(.*)"\s*$/;
+      for(const ln of lines){
+        const m = ln.match(lineRe);
+        if(!m) continue;
+        const fullKey = m[1];
+        const seasonNum = parseInt(m[2],10);
+        const episodeNum = parseInt(m[3],10);
+        const field = m[4].toLowerCase();
+        const value = m[5];
+        const baseKey = fullKey.replace(/-([A-Za-z0-9_]+)$/, '');
+        if(!episodesData[baseKey]) episodesData[baseKey] = { season: seasonNum, episode: episodeNum, fields: {} };
+        episodesData[baseKey].fields[field] = value;
+      }
+      return episodesData;
+    }
+
+    function buildSeasonsFromEpisodesData(episodesData){
+      const seasonsMap = {};
+      Object.entries(episodesData).forEach(([baseKey, data])=>{
+        const s = data.season;
+        const e = data.episode;
+        if(!seasonsMap[s]) seasonsMap[s] = { seasonNumber: s, title: `Season ${s}`, episodes: [] };
+        const f = data.fields;
+        const episodeObj = {
+          id: baseKey,
+          title: f.title || `S${s} • Ep ${e}`,
+          season: s,
+          episodeIndex: e,
+          description: f.desc || '',
+          image: f.image || `https://picsum.photos/seed/${encodeURIComponent(baseKey)}/400/240`,
+          length: f.length || '',
+          genre: f.genre || '',
+          rating: f.rating || '',
+          date: f.date || '',
+          video: f.link || ''
+        };
+        seasonsMap[s].episodes.push(episodeObj);
+      });
+      const seasonsArray = Object.values(seasonsMap).map(s => {
+        s.episodes.sort((a,b)=>a.episodeIndex - b.episodeIndex);
+        return s;
+      });
+      seasonsArray.sort((a,b)=>a.seasonNumber - b.seasonNumber);
+      return seasonsArray;
+    }
+
+    function generateDefaultSeasons(){
+      const seasons = [];
+      for(let s=0; s<=2; s++){
+        const season = { seasonNumber: s, title: `Season ${s}`, episodes: [] };
+        for(let e=0; e<=3; e++){
+          season.episodes.push({
+            id: `S${s}E${e}`,
+            title: `S${s} • Ep ${e}`,
+            season: s,
+            episodeIndex: e,
+            description: `Auto-generated placeholder for Season ${s} Episode ${e}.`,
+            image: `https://picsum.photos/seed/auto${s}_${e}/400/240`,
+            length: '0m30s',
+            genre: '',
+            rating: '',
+            date: '',
+            video: ''
+          });
+        }
+        seasons.push(season);
+      }
+      return seasons;
+    }
+
+    // ---------------- Player helpers ----------------
+    function extractDriveId(url){
+      if(!url) return null;
+      const re1 = /\/d\/([a-zA-Z0-9_-]+)/;
+      const re2 = /[?&]id=([a-zA-Z0-9_-]+)/;
+      const a = url.match(re1) || url.match(re2);
+      return a ? a[1] : null;
+    }
+    function extractYouTubeId(url){
+      if(!url) return null;
+      const re = /(?:v=|\/embed\/|youtu\.be\/)([a-zA-Z0-9_-]{6,})/;
+      const m = url.match(re);
+      return m ? m[1] : null;
+    }
+    function getPlayableSource(videoField){
+      if(!videoField) return null;
+      if(typeof videoField === 'string'){
+        if(videoField.startsWith('mp4:')) return {type:'mp4', src: videoField.slice(4)};
+        if(videoField.startsWith('drive:')) return {type:'iframe', src: `https://drive.google.com/file/d/${videoField.slice(6)}/preview`};
+        if(videoField.startsWith('yt:')) return {type:'iframe', src: `https://www.youtube.com/embed/${videoField.slice(3)}`};
+        if(videoField.match(/\.(mp4|webm|ogg)(\?|$)/i)) return {type:'mp4', src: videoField};
+        const driveId = extractDriveId(videoField);
+        if(driveId) return {type:'iframe', src: `https://drive.google.com/file/d/${driveId}/preview`};
+        const ytId = extractYouTubeId(videoField);
+        if(ytId) return {type:'iframe', src: `https://www.youtube.com/embed/${ytId}`};
+        return {type:'iframe', src: videoField};
+      }
+      return null;
+    }
+
+    // ---------------- UI references ----------------
+    const trending = document.getElementById('trending');
+    const newR = document.getElementById('newReleases');
+    const rec = document.getElementById('recommended');
+    const topClips = document.getElementById('topClips');
+
+    const seasonList = document.getElementById('seasonList');
+    const episodesGrid = document.getElementById('episodesGrid');
+    const selectedSeasonLabel = document.getElementById('selectedSeasonLabel');
+
+    const heroTitle = document.getElementById('heroTitle');
+    const heroDesc = document.getElementById('heroDesc');
+    const heroPoster = document.getElementById('heroPoster');
+    const heroRating = document.getElementById('heroRating');
+    const heroLength = document.getElementById('heroLength');
+    const heroGenre = document.getElementById('heroGenre');
+
+    const modal = document.getElementById('modal');
+    const closeModal = document.getElementById('closeModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalPoster = document.getElementById('modalPoster');
+    const modalDesc = document.getElementById('modalDesc');
+    const modalMeta = document.getElementById('modalMeta');
+    const modalMessageContainer = document.getElementById('modalMessageContainer');
+    const player = document.getElementById('player');
+    const playerWrapper = document.getElementById('playerWrapper');
+
+    // ---------------- Data (cards) ----------------
+    const movies = [
+      {
+        id: 1,
+        title: 'A Minecraft Movie',
+        year: 2025,
+        rating: 'PG-13',
+        genre: 'Action Epic, Adventure Epic, Fantasy Epic, High-Concept Comedy, Quest, Slapstick, Survival, Action, Adventure, Comedy',
+        length: '1h 41m',
+        description: 'Four misfits are suddenly pulled through a mysterious portal into a bizarre cubic wonderland that thrives on imagination. To get back home theyll have to master this world while embarking on a quest with an unexpected expert crafter.',
+        image: 'https://picsum.photos/seed/m1/400/240',
+        video: ''
+      },
+      {
+        id: 2,
+        title: 'Wicked',
+        year: 2024,
+        rating: 'PG',
+        genre: 'Fairy Tale, Pop Musical, Fantasy, Musical, Romance',
+        length: '2h 40m',
+        description: 'Elphaba, a young woman ridiculed for her green skin, and Galinda, a popular girl, become friends at Shiz University in the Land of Oz. After an encounter with the Wonderful Wizard of Oz, their friendship reaches a crossroads.',
+        image: 'https://picsum.photos/seed/m2/400/240',
+        video: ''
+      },
+      {
+        id: 3,
+        title: 'Five Nights at Freddys',
+        year: 2023,
+        rating: 'PG-13',
+        genre: 'Supernatural Horror, Suspense Mystery, Whodunnit, Horror, Mystery, Thriller',
+        length: '1h 49m',
+        description: 'A troubled security guard begins working at Freddy Fazbears Pizza. During his five nights on the job, he realizes that something is wrong with the pizzeria and pretty soon finds the truth about its animatronics.',
+        image: 'https://picsum.photos/seed/m3/400/240',
+        video: ''
+      }
+    ];
+
+    // ---------------- Rendering helpers ----------------
+    function makeCard(item){
+      const el = document.createElement('article'); el.className='card';
+      el.innerHTML = `
+        <div class="img"><img src="${item.image}" alt="${item.title}"></div>
+        <div class="title">${item.title}</div>
+        <div class="meta">${item.length || ''} • ${item.year || ''} ${item.genre ? ' • ' + item.genre : ''}</div>
+        <div class="desc">${item.description || ''}</div>
+      `;
+      el.addEventListener('click', ()=>selectMovie(item));
+      return el;
+    }
+
+    function renderRows(){
+      trending.innerHTML=''; newR.innerHTML=''; rec.innerHTML=''; topClips.innerHTML='';
+      movies.slice(0,4).forEach(it=>trending.appendChild(makeCard(it)));
+      movies.slice(1,5).forEach(it=>newR.appendChild(makeCard(it)));
+      movies.slice(0).forEach(it=>rec.appendChild(makeCard(it)));
+      const mixed = [];
+      if(seasonsGlobal.length) mixed.push(...seasonsGlobal[0].episodes.slice(0,3));
+      mixed.push(...movies.slice(0,3));
+      mixed.slice(0,6).forEach(it=>{
+        const t = document.createElement('div'); t.className='thumb';
+        t.innerHTML = `<img src="${it.image}" alt="${it.title}"><div><div style="font-weight:700">${it.title}</div><div class="tmeta">${it.length || ''} ${it.season !== undefined ? ' • S'+it.season : ''}</div></div>`;
+        t.addEventListener('click', ()=>selectMovie(it)); topClips.appendChild(t);
+      });
+      // stagger animate cards
+      document.querySelectorAll('.card').forEach((c,i)=>{ c.style.animationDelay = (i*60)+'ms'; });
+    }
+
+    // hero behavior
+    let featured = movies[0];
+    function setFeatured(it){
+      featured = it;
+      heroTitle.textContent = it.title || 'Untitled';
+      heroPoster.src = it.image || '';
+      heroDesc.textContent = it.description || '';
+      heroRating.textContent = it.rating || '';
+      heroLength.textContent = it.length || '';
+      heroGenre.textContent = it.genre || '';
+    }
+
+    function selectMovie(item){
+      const adapted = Object.assign({
+        year: item.year || '',
+        rating: item.rating || '',
+        genre: item.genre || '',
+        length: item.length || '',
+      }, item);
+      setFeatured(adapted);
+      openModal(adapted);
+    }
+
+    // ---------------- modal/player logic ----------------
+    function showModalMessage(text){ modalMessageContainer.innerHTML = ''; if(!text) return; const el=document.createElement('div'); el.className='modal-message'; el.textContent = text; modalMessageContainer.appendChild(el); }
+
+    function openModal(item){
+      modal.classList.add('open');
+      modalTitle.textContent = item.title || 'Untitled';
+      modalPoster.src = item.image || '';
+      modalDesc.textContent = item.description || '';
+      modalMeta.textContent = `${item.year || ''} ${item.season !== undefined ? '• Season '+item.season : ''} ${item.episodeIndex !== undefined ? '• Ep '+item.episodeIndex : ''} • ${item.rating || ''}`.trim();
+      showModalMessage('');
+      const spec = getPlayableSource(item.video);
+      const playerContainer = document.getElementById('playerWrapper');
+      const existingIframe = playerContainer.querySelector('iframe');
+      if(existingIframe) existingIframe.remove();
+      if(!spec){
+        player.style.display = 'none';
+        showModalMessage('No playable video source provided for this item. Edit the block and press Reload.');
+        return;
+      }
+      if(spec.type === 'mp4'){
+        player.style.display = 'block';
+        if(!player.querySelector('source')) player.appendChild(document.createElement('source'));
+        const srcEl = player.querySelector('source');
+        srcEl.src = spec.src;
+        if(spec.src.match(/\.webm(\?|$)/i)) srcEl.type = 'video/webm';
+        else if(spec.src.match(/\.ogg(\?|$)/i)) srcEl.type = 'video/ogg';
+        else srcEl.type = 'video/mp4';
+        try{ player.load(); player.play().catch(()=>{}); }catch(e){ console.warn('Video play failed', e); }
+      } else {
+        player.style.display = 'none';
+        const iframe = document.createElement('iframe');
+        iframe.width = '100%';
+        iframe.height = '100%';
+        iframe.allow = 'autoplay; encrypted-media; picture-in-picture';
+        iframe.allowFullscreen = true;
+        iframe.src = spec.src;
+        iframe.style.border = '0';
+        iframe.style.borderRadius = '8px';
+        iframe.addEventListener('error', ()=> showModalMessage('Embed failed to load. Check that the source is public and embeddable.'));
+        playerContainer.appendChild(iframe);
+      }
+    }
+
+    function closeAndCleanup(){
+      modal.classList.remove('open');
+      showModalMessage('');
+      try{ player.pause(); player.currentTime = 0; } catch(e){}
+      const pcont = document.getElementById('playerWrapper');
+      const existingIframe = pcont.querySelector('iframe'); if(existingIframe) existingIframe.remove();
+      const srcEl = player.querySelector('source'); if(srcEl) srcEl.src = '';
+      try{ player.load(); } catch(e){}
+    }
+    closeModal.addEventListener('click', ()=>{ closeAndCleanup(); });
+    modal.addEventListener('click', (e)=>{ if(e.target===modal){ closeAndCleanup(); } });
+
+    // ---------------- Seasons UI ----------------
+    let seasonsGlobal = []; // built from block or generated default
+    let currentSeasonIndex = 0;
+
+    function renderSeasonButtons(){
+      seasonList.innerHTML = '';
+      if(!seasonsGlobal.length){ seasonList.innerHTML = '<div style="color:var(--muted)">No seasons available.</div>'; return; }
+      seasonsGlobal.forEach((sobj, idx)=>{
+        const btn = document.createElement('button');
+        btn.className = 'season-btn' + (idx === currentSeasonIndex ? ' active' : '');
+        btn.textContent = sobj.title;
+        btn.addEventListener('click', ()=>{ currentSeasonIndex = idx; renderSeasonButtons(); renderEpisodes(idx); });
+        seasonList.appendChild(btn);
+      });
+    }
+
+    function renderEpisodes(seasonIdx){
+      episodesGrid.innerHTML = '';
+      const season = seasonsGlobal[seasonIdx];
+      if(!season) return;
+      selectedSeasonLabel.textContent = `— ${season.title}`;
+      season.episodes.forEach((ep, i)=>{
+        const epEl = document.createElement('div');
+        epEl.className = 'episode';
+        const displayNumber = ep.episodeIndex;
+        epEl.innerHTML = `<img src="${ep.image}" alt="${ep.title}"><div><div style="font-weight:700">${ep.title || ('Episode '+displayNumber)}</div><div class="ep-meta">${ep.description || ''}</div></div>`;
+        epEl.addEventListener('click', ()=>{ const adapted = Object.assign({}, ep, { title: ep.title || `S${ep.season} • Ep ${displayNumber}`, season: ep.season }); selectMovie(adapted); });
+        // stagger animation
+        epEl.style.animationDelay = (i*50)+'ms';
+        episodesGrid.appendChild(epEl);
+      });
+    }
+
+    // ---------------- Search ----------------
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('input', (e)=>{
+      const q = e.target.value.trim().toLowerCase();
+      if(!q){ renderRows(); setFeatured(movies[0]); return; }
+      const matches = movies.filter(it=> (it.title+ ' ' + it.description + ' ' + (it.genre||'')).toLowerCase().includes(q) );
+      trending.innerHTML=''; matches.forEach(it=>trending.appendChild(makeCard(it)));
+    });
+
+    // play featured and details
+    document.getElementById('playBtn').addEventListener('click', ()=>openModal(featured));
+    document.getElementById('detailsBtn').addEventListener('click', ()=>{ alert('Edit the editable block in the source and reload the page to update seasons.'); });
+
+    // ---------------- Main parse & boot flow ----------------
+    function parseAndBoot(){
+      const lines = readEditableBlock();
+      const epData = parseEditableLines(lines);
+      if(Object.keys(epData).length === 0){
+        seasonsGlobal = generateDefaultSeasons();
+      } else {
+        seasonsGlobal = buildSeasonsFromEpisodesData(epData);
+      }
+      currentSeasonIndex = 0;
+      renderSeasonButtons();
+      renderEpisodes(currentSeasonIndex);
+      renderRows();
+      setFeatured(movies[0]);
+      const totalEps = seasonsGlobal.reduce((s,a)=>s+a.episodes.length,0);
+      console.log(`Parsed ${seasonsGlobal.length} seasons and ${totalEps} episodes.`);
+    }
+
+    // dblclick editable block to prompt-edit quickly (block is hidden but still editable via dblclick if you reveal it manually)
+    const editablePre = document.getElementById('EDITABLE_BLOCK');
+    editablePre.addEventListener('dblclick', ()=>{
+      const newText = prompt('Edit the episode block (paste lines in the format KEY = \"VALUE\").', editablePre.textContent);
+      if(newText !== null){
+        editablePre.textContent = newText;
+        parseAndBoot();
+      }
+    });
+
+    // initial boot
+    parseAndBoot();
+
+    // keyboard season navigation
+    document.addEventListener('keydown', (e)=>{
+      if(e.key === 'ArrowRight'){
+        if(currentSeasonIndex < seasonsGlobal.length-1){ currentSeasonIndex++; renderSeasonButtons(); renderEpisodes(currentSeasonIndex); }
+      } else if(e.key === 'ArrowLeft'){
+        if(currentSeasonIndex > 0){ currentSeasonIndex--; renderSeasonButtons(); renderEpisodes(currentSeasonIndex); }
+      }
+    });
+  </script>
+</body>
+</html>
